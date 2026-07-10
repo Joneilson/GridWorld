@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Ambientes virtuais
+.venv/
+venv/
+env/
+ENV/
+
+# Ferramentas / IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Resultados gerados (gráficos, logs, modelos treinados)
+resultados/graficos/
+resultados/logs/
+*.npy
+*.pkl
+
+# Notebooks
+.ipynb_checkpoints/

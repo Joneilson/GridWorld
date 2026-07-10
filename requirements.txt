@@ -1,0 +1,5 @@
+# Dependências do projeto. O ambiente (grid_world.py) é Python puro e não
+# precisa de nada além da biblioteca padrão. As libs abaixo entram nos
+# próximos passos (RL, GA, avaliação e gráficos).
+numpy>=1.24
+matplotlib>=3.7
