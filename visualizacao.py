@@ -13,7 +13,8 @@ visual do agente" exigida no vídeo (SPEC seção 8).
 Exemplos de uso:
     python visualizacao.py                          # A* no mapa seed=42
     python visualizacao.py --agente aleatorio       # o baseline se atrapalhando
-    python visualizacao.py --comparar               # os dois, um após o outro
+    python visualizacao.py --agente qlearning       # treina e mostra o Q-Learning
+    python visualizacao.py --comparar               # aleatório, A* e Q-Learning
     python visualizacao.py --passo-a-passo          # avança com ENTER
     python visualizacao.py --delay 0.4 --seed 7     # mais devagar, outro mapa
     python visualizacao.py --ascii                  # sem glifos/box (terminal simples)
@@ -31,6 +32,7 @@ import time
 from ambiente.grid_world import GridWorldEnv, NOME_ACAO
 from agentes.agente_aleatorio import AgenteAleatorio
 from agentes.agente_busca import AgenteBusca
+from agentes.agente_rl import AgenteRL
 
 
 # --- Suporte a ANSI/UTF-8 no Windows ------------------------------------ #
@@ -235,11 +237,17 @@ def _pausar(delay, passo_a_passo):
         time.sleep(delay)
 
 
-def _criar_agente(nome, env, heuristica):
+def _criar_agente(nome, env, heuristica, n_treino=5000):
     if nome == "aleatorio":
         return AgenteAleatorio(n_acoes=env.n_acoes, seed=0), "Aleatório (baseline)"
     if nome == "astar":
         return AgenteBusca(env, heuristica=heuristica), f"A* ({heuristica})"
+    if nome == "qlearning":
+        agente = AgenteRL(env, seed=0)
+        print(f"  treinando Q-Learning por {n_treino} episódios "
+              f"(aguarde alguns segundos)...", flush=True)
+        agente.treinar(n_episodios=n_treino)
+        return agente, "Q-Learning (treinado)"
     raise ValueError(nome)
 
 
@@ -254,12 +262,15 @@ def _resumo(rotulo, m):
 
 def main():
     p = argparse.ArgumentParser(description="Animação do GridWorld no terminal.")
-    p.add_argument("--agente", choices=["aleatorio", "astar"], default="astar")
+    p.add_argument("--agente", choices=["aleatorio", "astar", "qlearning"],
+                   default="astar")
     p.add_argument("--comparar", action="store_true",
-                   help="anima o aleatório e depois o A*, e compara no final")
+                   help="anima aleatório, A* e Q-Learning em sequência e compara")
     p.add_argument("--seed", type=int, default=42, help="mapa a usar (padrão: 42)")
     p.add_argument("--heuristica", default="admissivel",
                    choices=AgenteBusca.HEURISTICAS, help="heurística do A*")
+    p.add_argument("--episodios", type=int, default=5000,
+                   help="episódios de treino do Q-Learning (padrão: 5000)")
     p.add_argument("--delay", type=float, default=0.15,
                    help="segundos entre passos (padrão: 0.15)")
     p.add_argument("--passo-a-passo", action="store_true",
@@ -270,12 +281,12 @@ def main():
     args = p.parse_args()
 
     usar_cor = not args.sem_cor
-    nomes = ["aleatorio", "astar"] if args.comparar else [args.agente]
+    nomes = ["aleatorio", "astar", "qlearning"] if args.comparar else [args.agente]
 
     resultados = []
     for nome in nomes:
         env = GridWorldEnv(seed=args.seed)
-        agente, rotulo = _criar_agente(nome, env, args.heuristica)
+        agente, rotulo = _criar_agente(nome, env, args.heuristica, args.episodios)
         m = animar(env, agente, rotulo, delay=args.delay, usar_cor=usar_cor,
                    ascii_mode=args.ascii, passo_a_passo=args.passo_a_passo)
         resultados.append((rotulo, m))
