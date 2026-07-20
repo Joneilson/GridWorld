@@ -15,7 +15,8 @@ Exemplos de uso:
     python visualizacao.py --menu                   # idem, menu interativo
     python visualizacao.py --agente aleatorio       # o baseline se atrapalhando
     python visualizacao.py --agente qlearning       # treina e mostra o Q-Learning
-    python visualizacao.py --comparar               # aleatório, A* e Q-Learning
+    python visualizacao.py --agente genetico        # evolui e mostra o GA
+    python visualizacao.py --comparar               # aleatório, A*, Q-Learning e GA
     python visualizacao.py --passo-a-passo          # avança com ENTER
     python visualizacao.py --delay 0.4 --seed 7     # mais devagar, outro mapa
     python visualizacao.py --ascii                  # sem glifos/box (terminal simples)
@@ -34,6 +35,7 @@ from ambiente.grid_world import GridWorldEnv, NOME_ACAO
 from agentes.agente_aleatorio import AgenteAleatorio
 from agentes.agente_busca import AgenteBusca
 from agentes.agente_rl import AgenteRL
+from agentes.agente_genetico import AgenteGenetico
 
 
 # --- Suporte a ANSI/UTF-8 no Windows ------------------------------------ #
@@ -249,6 +251,13 @@ def _criar_agente(nome, env, heuristica, n_treino=5000):
               f"(aguarde alguns segundos)...", flush=True)
         agente.treinar(n_episodios=n_treino)
         return agente, "Q-Learning (treinado)"
+    if nome == "genetico":
+        agente = AgenteGenetico(env, seed=0)
+        print(f"  evoluindo GA por {agente.n_geracoes} gerações "
+              f"(população {agente.tam_populacao}, aguarde alguns segundos)...",
+              flush=True)
+        agente.treinar()
+        return agente, "Genético (evoluído)"
     raise ValueError(nome)
 
 
@@ -268,7 +277,8 @@ def executar(cfg):
     Usada tanto pela linha de comando quanto pelo menu interativo — as duas
     entradas montam o mesmo dicionário de configuração.
     """
-    nomes = ["aleatorio", "astar", "qlearning"] if cfg["comparar"] else [cfg["agente"]]
+    nomes = (["aleatorio", "astar", "qlearning", "genetico"]
+             if cfg["comparar"] else [cfg["agente"]])
 
     resultados = []
     for nome in nomes:
@@ -349,7 +359,8 @@ def _menu_agente(cfg):
     print("    [1] Aleatório  (baseline)")
     print("    [2] A*         (busca heurística)")
     print("    [3] Q-Learning (aprendizado por reforço)")
-    print("    [4] Comparar os três em sequência")
+    print("    [4] Genético   (evolução de política)")
+    print("    [5] Comparar os quatro em sequência")
     esc = _entrada("  escolha: ")
     if esc == "1":
         cfg["comparar"], cfg["agente"] = False, "aleatorio"
@@ -358,6 +369,8 @@ def _menu_agente(cfg):
     elif esc == "3":
         cfg["comparar"], cfg["agente"] = False, "qlearning"
     elif esc == "4":
+        cfg["comparar"], cfg["agente"] = False, "genetico"
+    elif esc == "5":
         cfg["comparar"] = True
 
 
@@ -427,10 +440,11 @@ def menu(cfg):
 
 def main():
     p = argparse.ArgumentParser(description="Animação do GridWorld no terminal.")
-    p.add_argument("--agente", choices=["aleatorio", "astar", "qlearning"],
+    p.add_argument("--agente",
+                   choices=["aleatorio", "astar", "qlearning", "genetico"],
                    default="astar")
     p.add_argument("--comparar", action="store_true",
-                   help="anima aleatório, A* e Q-Learning em sequência e compara")
+                   help="anima aleatório, A*, Q-Learning e Genético em sequência")
     p.add_argument("--seed", type=int, default=42, help="mapa a usar (padrão: 42)")
     p.add_argument("--heuristica", default="admissivel",
                    choices=AgenteBusca.HEURISTICAS, help="heurística do A*")

@@ -15,10 +15,10 @@ O agente precisa **coletar todos os recursos** espalhados pelo grid e depois
 | **Aleatório** | Baseline (piso de comparação) | [agentes/agente_aleatorio.py](agentes/agente_aleatorio.py) | ✅ |
 | **Busca A\*** | Planejamento / busca heurística | [agentes/agente_busca.py](agentes/agente_busca.py) | ✅ |
 | **Q-Learning** | Aprendizado por reforço (tabular) | [agentes/agente_rl.py](agentes/agente_rl.py) | ✅ |
-| **Genético** | Evolução de política | *(a implementar)* | ⬜ |
+| **Genético** | Evolução de política | [agentes/agente_genetico.py](agentes/agente_genetico.py) | ✅ |
 
-Ainda pendentes: agente genético, protocolo de avaliação comparativa (30 execuções,
-tabela + boxplot) e uma CLI `main.py` unificada.
+Ainda pendentes: protocolo de avaliação comparativa (30 execuções, tabela +
+boxplot) e uma CLI `main.py` unificada.
 
 ## O ambiente em resumo
 
@@ -35,6 +35,7 @@ sempre, para comparação justa entre agentes). Definido em
 Decisões de modelagem relevantes (documentadas no código):
 - **A\*** planeja sobre o espaço de estados composto `(posição × bitmask de recursos)`, tratando armadilhas como paredes; a energia é folgada e não entra na busca.
 - **Q-Learning** discretiza o estado como `(posição, bitmask)` e **descarta a energia** para não explodir a Q-table — a energia segue valendo apenas como condição de término (simplificação do MDP, assumida como limitação).
+- **Genético** usa o indivíduo como **sequência de ações** (plano de malha aberta), não a tabela de política. A tabela por estado, testada primeiro, estagnava num ótimo local e não resolvia a tarefa; a sequência otimiza a trajetória inteira e resolve o mapa. Trade-off: o plano superajusta a um mapa fixo (re-evolui para outro mapa).
 
 ## Estrutura
 
@@ -47,8 +48,9 @@ GridWorld/
 ├── agentes/
 │   ├── agente_aleatorio.py    # baseline + rodar_episodio (interface comum)
 │   ├── agente_busca.py        # A* sobre (posição, bitmask)
-│   └── agente_rl.py           # Q-Learning tabular (treino + inferência + curva)
-├── tests/                     # 48 testes (unittest)
+│   ├── agente_rl.py           # Q-Learning tabular (treino + inferência + curva)
+│   └── agente_genetico.py     # GA: evolução de sequência de ações + curva de fitness
+├── tests/                     # 58 testes (unittest)
 ├── visualizacao.py            # animação de um episódio no terminal
 └── resultados/graficos/       # curvas geradas (não versionado)
 ```
@@ -77,7 +79,10 @@ python -m agentes.agente_busca
 # Treinar o Q-Learning (mapa seed=42), salvar a curva e comparar com o baseline
 python -m agentes.agente_rl
 
-# Testes (48)
+# Evoluir o Genético (mapa seed=42), salvar a curva de fitness e comparar
+python -m agentes.agente_genetico
+
+# Testes (58)
 python -m unittest discover -s tests -v
 ```
 
@@ -96,24 +101,25 @@ Também dá para ir direto pela linha de comando:
 
 ```bash
 python visualizacao.py --agente qlearning   # treina e mostra o Q-Learning resolvendo
+python visualizacao.py --agente genetico     # evolui e mostra o Genético resolvendo
 python visualizacao.py --agente astar        # só o A*
-python visualizacao.py --comparar            # aleatório, A* e Q-Learning em sequência
+python visualizacao.py --comparar            # aleatório, A*, Q-Learning e Genético
 python visualizacao.py --seed 7              # outro mapa
 python visualizacao.py --passo-a-passo       # avança com ENTER (bom p/ explicar)
 python visualizacao.py --ascii               # se o terminal não tiver UTF-8
 python visualizacao.py --help                # todas as opções
 ```
 
-## Resultado atual (mapa `seed=42`, 100 execuções)
+## Resultado atual (mapa `seed=42`)
 
-| Agente | Taxa de sucesso | Recompensa média |
+| Agente | Taxa de sucesso | Recompensa |
 |---|---|---|
 | Q-Learning (treinado, 5000 episódios) | **100%** | +124 |
+| Genético (evoluído, 500 gerações) | **100%** | +113 |
 | Aleatório (baseline) | 0% | −101 |
 
-O Q-Learning parte de recompensa ~−100 e, após ~1000 episódios de treino,
-estabiliza acima de +100 — a curva de aprendizado é salva em
-`resultados/graficos/curva_qlearning.png`.
+- O **Q-Learning** parte de recompensa ~−100 e, após ~1000 episódios, estabiliza acima de +100 — curva em `resultados/graficos/curva_qlearning.png`.
+- O **Genético** fica preso num ótimo local (~−35) até romper por volta da geração 350 e subir a +113 — curva de fitness em `resultados/graficos/curva_genetico.png`. Esse "salto" é ótimo para mostrar a evolução no vídeo.
 
 ## Reprodutibilidade
 
