@@ -24,3 +24,9 @@ resultados/logs/
 
 # Notebooks
 .ipynb_checkpoints/
+
+# Documentos de trabalho — mantidos localmente como referência, fora do GitHub
+# (o README.md é a documentação pública do repositório)
+SPEC.md
+TEORIA.md
+ENTREGA_1.md

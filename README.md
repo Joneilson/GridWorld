@@ -1,0 +1,110 @@
+# GridWorld — Agentes Inteligentes em um Mundo de Coleta
+
+Estudo dirigido de Inteligência Artificial (2026.1). Um ambiente **Grid World 2D
+de coleta de recursos** com energia limitada e armadilhas, no qual diferentes
+paradigmas de agente são implementados e comparados sob o mesmo protocolo de
+avaliação.
+
+O agente precisa **coletar todos os recursos** espalhados pelo grid e depois
+**chegar à saída**, sem cair em armadilhas e sem esgotar a energia.
+
+## Agentes
+
+| Agente | Paradigma | Arquivo | Status |
+|---|---|---|---|
+| **Aleatório** | Baseline (piso de comparação) | [agentes/agente_aleatorio.py](agentes/agente_aleatorio.py) | ✅ |
+| **Busca A\*** | Planejamento / busca heurística | [agentes/agente_busca.py](agentes/agente_busca.py) | ✅ |
+| **Q-Learning** | Aprendizado por reforço (tabular) | [agentes/agente_rl.py](agentes/agente_rl.py) | ✅ |
+| **Genético** | Evolução de política | *(a implementar)* | ⬜ |
+
+Ainda pendentes: agente genético, protocolo de avaliação comparativa (30 execuções,
+tabela + boxplot) e uma CLI `main.py` unificada.
+
+## O ambiente em resumo
+
+Grid `N×N` (padrão **10×10**), com layout **fixo por seed** (mesma disposição
+sempre, para comparação justa entre agentes). Definido em
+[ambiente/grid_world.py](ambiente/grid_world.py).
+
+- **Estado:** `(posição (x,y), recursos_coletados (bitmask), energia_restante)` — tupla *hashable*.
+- **Ações:** `0=cima, 1=baixo, 2=esquerda, 3=direita`. Bater na borda mantém a posição mas **consome energia**.
+- **Recompensas:** passo −1 · coletar recurso +10 · armadilha −50 (fim) · saída com tudo coletado +100 (sucesso) · exaustão/timeout −20 (fim).
+- **Término:** sucesso (tudo coletado **e** na saída), armadilha, energia 0, ou timeout de passos.
+- **Energia inicial:** `3·N·N` (=300 no 10×10), −1 por passo.
+
+Decisões de modelagem relevantes (documentadas no código):
+- **A\*** planeja sobre o espaço de estados composto `(posição × bitmask de recursos)`, tratando armadilhas como paredes; a energia é folgada e não entra na busca.
+- **Q-Learning** discretiza o estado como `(posição, bitmask)` e **descarta a energia** para não explodir a Q-table — a energia segue valendo apenas como condição de término (simplificação do MDP, assumida como limitação).
+
+## Estrutura
+
+```
+GridWorld/
+├── README.md
+├── requirements.txt
+├── ambiente/
+│   └── grid_world.py          # GridWorldEnv: reset(), step(), render()
+├── agentes/
+│   ├── agente_aleatorio.py    # baseline + rodar_episodio (interface comum)
+│   ├── agente_busca.py        # A* sobre (posição, bitmask)
+│   └── agente_rl.py           # Q-Learning tabular (treino + inferência + curva)
+├── tests/                     # 48 testes (unittest)
+├── visualizacao.py            # animação de um episódio no terminal
+└── resultados/graficos/       # curvas geradas (não versionado)
+```
+
+## Instalação
+
+```bash
+pip install -r requirements.txt
+```
+
+O ambiente e os agentes são **Python puro** (biblioteca padrão). `numpy` e
+`matplotlib` só são necessários para os gráficos (curva de aprendizado / avaliação).
+
+## Como rodar
+
+```bash
+# Ambiente funcionando ponta a ponta (passeio aleatório + render)
+python -m ambiente.grid_world
+
+# Baseline aleatório: 1 episódio + estatística de 100 (taxa de sucesso ~0%)
+python -m agentes.agente_aleatorio
+
+# A* resolvendo o mapa + comparação de heurísticas
+python -m agentes.agente_busca
+
+# Treinar o Q-Learning (mapa seed=42), salvar a curva e comparar com o baseline
+python -m agentes.agente_rl
+
+# Testes (48)
+python -m unittest discover -s tests -v
+```
+
+### Visualização no terminal (para o vídeo)
+
+```bash
+python visualizacao.py --agente qlearning   # treina e mostra o Q-Learning resolvendo
+python visualizacao.py --agente astar        # só o A*
+python visualizacao.py --comparar            # aleatório, A* e Q-Learning em sequência
+python visualizacao.py --passo-a-passo       # avança com ENTER (bom p/ explicar)
+python visualizacao.py --ascii               # se o terminal não tiver UTF-8
+python visualizacao.py --help                # todas as opções
+```
+
+## Resultado atual (mapa `seed=42`, 100 execuções)
+
+| Agente | Taxa de sucesso | Recompensa média |
+|---|---|---|
+| Q-Learning (treinado, 5000 episódios) | **100%** | +124 |
+| Aleatório (baseline) | 0% | −101 |
+
+O Q-Learning parte de recompensa ~−100 e, após ~1000 episódios de treino,
+estabiliza acima de +100 — a curva de aprendizado é salva em
+`resultados/graficos/curva_qlearning.png`.
+
+## Reprodutibilidade
+
+Tudo é determinístico por seed: o layout do mapa (`GridWorldEnv(seed=...)`) e a
+aleatoriedade dos agentes (`seed=...`). Os mesmos comandos acima reproduzem os
+mesmos resultados.
