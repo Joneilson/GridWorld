@@ -83,10 +83,22 @@ python -m unittest discover -s tests -v
 
 ### Visualização no terminal (para o vídeo)
 
+A forma mais fácil é o **menu interativo** — escolha o agente, troque a seed do
+mapa, ajuste a velocidade etc. na própria tela, rode e volte ao menu para testar
+outra seed sem reiniciar:
+
+```bash
+python visualizacao.py            # abre o menu interativo (padrão sem argumentos)
+python visualizacao.py --menu     # idem
+```
+
+Também dá para ir direto pela linha de comando:
+
 ```bash
 python visualizacao.py --agente qlearning   # treina e mostra o Q-Learning resolvendo
 python visualizacao.py --agente astar        # só o A*
 python visualizacao.py --comparar            # aleatório, A* e Q-Learning em sequência
+python visualizacao.py --seed 7              # outro mapa
 python visualizacao.py --passo-a-passo       # avança com ENTER (bom p/ explicar)
 python visualizacao.py --ascii               # se o terminal não tiver UTF-8
 python visualizacao.py --help                # todas as opções

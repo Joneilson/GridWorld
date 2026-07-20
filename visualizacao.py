@@ -11,7 +11,8 @@ Serve para entender o comportamento de cada agente e para gravar a "evolução
 visual do agente" exigida no vídeo (SPEC seção 8).
 
 Exemplos de uso:
-    python visualizacao.py                          # A* no mapa seed=42
+    python visualizacao.py                          # MENU interativo (escolher tudo na tela)
+    python visualizacao.py --menu                   # idem, menu interativo
     python visualizacao.py --agente aleatorio       # o baseline se atrapalhando
     python visualizacao.py --agente qlearning       # treina e mostra o Q-Learning
     python visualizacao.py --comparar               # aleatório, A* e Q-Learning
@@ -260,6 +261,170 @@ def _resumo(rotulo, m):
             f"({m['motivo']})")
 
 
+def executar(cfg):
+    """
+    Roda a animação para a configuração `cfg` (dict) e imprime o resumo final.
+
+    Usada tanto pela linha de comando quanto pelo menu interativo — as duas
+    entradas montam o mesmo dicionário de configuração.
+    """
+    nomes = ["aleatorio", "astar", "qlearning"] if cfg["comparar"] else [cfg["agente"]]
+
+    resultados = []
+    for nome in nomes:
+        env = GridWorldEnv(seed=cfg["seed"])
+        agente, rotulo = _criar_agente(nome, env, cfg["heuristica"], cfg["episodios"])
+        m = animar(env, agente, rotulo, delay=cfg["delay"], usar_cor=cfg["cor"],
+                   ascii_mode=cfg["ascii"], passo_a_passo=cfg["passo_a_passo"])
+        resultados.append((rotulo, m))
+        if cfg["comparar"] and nome != nomes[-1]:
+            _entrada("\n  [ENTER para ver o próximo agente]")
+
+    print("\n" + "=" * 78)
+    print(f"  RESULTADO (mapa seed={cfg['seed']})")
+    print("=" * 78)
+    for rotulo, m in resultados:
+        print(_resumo(rotulo, m))
+    print()
+    return resultados
+
+
+# ----------------------------------------------------------------------- #
+# Menu interativo
+# ----------------------------------------------------------------------- #
+def _entrada(prompt=""):
+    """input() robusto: Ctrl-C / fim-de-entrada encerram educadamente."""
+    try:
+        return input(prompt).strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\n  até mais!")
+        sys.exit(0)
+
+
+def _ler_int(prompt, atual, minimo=None):
+    """Lê um inteiro; ENTER vazio mantém o valor atual."""
+    while True:
+        txt = _entrada(f"{prompt} [{atual}]: ")
+        if txt == "":
+            return atual
+        try:
+            v = int(txt)
+        except ValueError:
+            print("  valor inválido — digite um número inteiro.")
+            continue
+        if minimo is not None and v < minimo:
+            print(f"  precisa ser >= {minimo}.")
+            continue
+        return v
+
+
+def _ler_float(prompt, atual, minimo=0.0):
+    """Lê um número (aceita vírgula); ENTER vazio mantém o valor atual."""
+    while True:
+        txt = _entrada(f"{prompt} [{atual}]: ")
+        if txt == "":
+            return atual
+        try:
+            v = float(txt.replace(",", "."))
+        except ValueError:
+            print("  valor inválido — digite um número.")
+            continue
+        if v < minimo:
+            print(f"  precisa ser >= {minimo}.")
+            continue
+        return v
+
+
+def _limpar_tela():
+    sys.stdout.write("\033[2J\033[H")
+    sys.stdout.flush()
+
+
+def _sim_nao(valor):
+    return "sim" if valor else "não"
+
+
+def _menu_agente(cfg):
+    print("\n  Qual agente?")
+    print("    [1] Aleatório  (baseline)")
+    print("    [2] A*         (busca heurística)")
+    print("    [3] Q-Learning (aprendizado por reforço)")
+    print("    [4] Comparar os três em sequência")
+    esc = _entrada("  escolha: ")
+    if esc == "1":
+        cfg["comparar"], cfg["agente"] = False, "aleatorio"
+    elif esc == "2":
+        cfg["comparar"], cfg["agente"] = False, "astar"
+    elif esc == "3":
+        cfg["comparar"], cfg["agente"] = False, "qlearning"
+    elif esc == "4":
+        cfg["comparar"] = True
+
+
+def _menu_heuristica(cfg):
+    hs = AgenteBusca.HEURISTICAS
+    print("\n  Heurística do A*:")
+    for i, h in enumerate(hs, 1):
+        print(f"    [{i}] {h}")
+    esc = _entrada("  escolha: ")
+    if esc.isdigit() and 1 <= int(esc) <= len(hs):
+        cfg["heuristica"] = hs[int(esc) - 1]
+
+
+def _desenhar_menu(cfg):
+    _limpar_tela()
+    alvo = "comparar os três" if cfg["comparar"] else cfg["agente"]
+    print("=" * 52)
+    print("  GridWorld — menu interativo")
+    print("=" * 52)
+    print("  Configuração atual:")
+    print(f"    agente      : {alvo}")
+    print(f"    seed (mapa) : {cfg['seed']}")
+    print(f"    heurística  : {cfg['heuristica']}   (usada só pelo A*)")
+    print(f"    episódios   : {cfg['episodios']}   (treino do Q-Learning)")
+    print(f"    velocidade  : delay {cfg['delay']}s   |   passo-a-passo: {_sim_nao(cfg['passo_a_passo'])}")
+    print(f"    aparência   : ascii {_sim_nao(cfg['ascii'])}   |   cores {_sim_nao(cfg['cor'])}")
+    print("-" * 52)
+    print("  [1] Agente / comparar        [5] Velocidade (delay)")
+    print("  [2] Seed do mapa             [6] Passo-a-passo (liga/desliga)")
+    print("  [3] Heurística do A*         [7] ASCII (liga/desliga)")
+    print("  [4] Episódios do Q-Learning  [8] Cores (liga/desliga)")
+    print("-" * 52)
+    print("  [R ou ENTER] ▶ RODAR         [Q] Sair")
+    print("=" * 52)
+
+
+def menu(cfg):
+    """Loop do menu: ajusta `cfg`, roda a animação e volta para novas escolhas."""
+    while True:
+        _desenhar_menu(cfg)
+        esc = _entrada("  > ").lower()
+
+        if esc in ("", "r"):
+            executar(cfg)
+            _entrada("\n  [ENTER para voltar ao menu]")
+        elif esc == "q":
+            print("  até mais!")
+            return
+        elif esc == "1":
+            _menu_agente(cfg)
+        elif esc == "2":
+            cfg["seed"] = _ler_int("  nova seed do mapa", cfg["seed"])
+        elif esc == "3":
+            _menu_heuristica(cfg)
+        elif esc == "4":
+            cfg["episodios"] = _ler_int("  episódios de treino", cfg["episodios"], minimo=1)
+        elif esc == "5":
+            cfg["delay"] = _ler_float("  delay em segundos", cfg["delay"])
+        elif esc == "6":
+            cfg["passo_a_passo"] = not cfg["passo_a_passo"]
+        elif esc == "7":
+            cfg["ascii"] = not cfg["ascii"]
+        elif esc == "8":
+            cfg["cor"] = not cfg["cor"]
+        # qualquer outra tecla: apenas redesenha o menu
+
+
 def main():
     p = argparse.ArgumentParser(description="Animação do GridWorld no terminal.")
     p.add_argument("--agente", choices=["aleatorio", "astar", "qlearning"],
@@ -278,27 +443,28 @@ def main():
     p.add_argument("--ascii", action="store_true",
                    help="usa letras/ASCII em vez de glifos e box-drawing")
     p.add_argument("--sem-cor", action="store_true", help="desliga as cores ANSI")
+    p.add_argument("--menu", action="store_true",
+                   help="abre o menu interativo (padrão quando não há argumentos)")
     args = p.parse_args()
 
-    usar_cor = not args.sem_cor
-    nomes = ["aleatorio", "astar", "qlearning"] if args.comparar else [args.agente]
+    cfg = {
+        "agente": args.agente,
+        "comparar": args.comparar,
+        "seed": args.seed,
+        "heuristica": args.heuristica,
+        "episodios": args.episodios,
+        "delay": args.delay,
+        "passo_a_passo": args.passo_a_passo,
+        "ascii": args.ascii,
+        "cor": not args.sem_cor,
+    }
 
-    resultados = []
-    for nome in nomes:
-        env = GridWorldEnv(seed=args.seed)
-        agente, rotulo = _criar_agente(nome, env, args.heuristica, args.episodios)
-        m = animar(env, agente, rotulo, delay=args.delay, usar_cor=usar_cor,
-                   ascii_mode=args.ascii, passo_a_passo=args.passo_a_passo)
-        resultados.append((rotulo, m))
-        if args.comparar and nome != nomes[-1]:
-            input("\n  [ENTER para ver o próximo agente]")
-
-    print("\n" + "=" * 78)
-    print(f"  RESULTADO (mapa seed={args.seed})")
-    print("=" * 78)
-    for rotulo, m in resultados:
-        print(_resumo(rotulo, m))
-    print()
+    # Sem nenhum argumento, ou com --menu, abre o menu interativo; caso
+    # contrário, roda direto o que foi pedido pela linha de comando.
+    if args.menu or len(sys.argv) == 1:
+        menu(cfg)
+    else:
+        executar(cfg)
 
 
 if __name__ == "__main__":
